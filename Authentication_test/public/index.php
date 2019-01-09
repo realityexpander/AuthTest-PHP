@@ -1,5 +1,5 @@
 <?php
-//test
+
 session_start();
 $checkedInUsers = loadCheckedInUsers();
 
