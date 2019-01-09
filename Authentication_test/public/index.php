@@ -3,6 +3,11 @@
 session_start();
 $checkedInUsers = loadCheckedInUsers();
 
+
+  define( 'SESSION_DURATION_SECONDS' , '60' );
+  define( 'COOKIE_DURATION_SECONDS' , '3600' );
+
+
 // *** load the currently checked in users
 function loadCheckedInUsers() {
   $result = Array();
@@ -32,7 +37,7 @@ function endSession() {
   session_unset();
   $_COOKIE["user_id"] = "";
   $_SESSION['user_id'] = "";
-  setcookie("user_id", NULL, time()-3600, "/", "", 0, 0);
+  setcookie("user_id", NULL, time()-COOKIE_DURATION_SECONDS, "/", "", 0, 0);
 }
 
 // *** Logout
@@ -47,15 +52,14 @@ function login($user_id, $checkedInUsers) {
   $_SESSION["user_id"] = $user_id; // set when succesfully logged in
   $hashed_user_id = hash("sha256", $user_id, false);
   $_COOKIE["user_id"] = $hashed_user_id;
-  setcookie("user_id", $hashed_user_id, time()+3600, "/", "", 0, 0);
-  // setcookie("user_plain", $user_id, time()+60*60, "/", "". 0, 0);
+  setcookie("user_id", $hashed_user_id, time()+COOKIE_DURATION_SECONDS, "/", "", 0, 0);
   checkInUser($user_id, $checkedInUsers);
   return $hashed_user_id;
 }
 
 function checkInUser($user_id, $checkedInUsers) {
   if(!isUserCheckedIn($user_id, $checkedInUsers)) {
-    $checkedInUsers[] = [ 'user_id' => $user_id, 'expiry' => time()+60 ];
+    $checkedInUsers[] = [ 'user_id' => $user_id, 'expiry' => time() + SESSION_DURATION_SECONDS ];
     file_put_contents('checkedInUsers.txt', json_encode($checkedInUsers));
   } else {
     renewCheckedInStatus($user_id, $checkedInUsers);
@@ -109,7 +113,7 @@ function renewCheckedInStatus($user_id, $checkedInUsers){
   $i=0;
   foreach($checkedInUsers as $values) {
     if ($values['user_id'] === $user_id )
-      $checkedInUsers[$i]['expiry'] = time() + 60;
+      $checkedInUsers[$i]['expiry'] = time() + SESSION_DURATION_SECONDS;
     $i++;
   }
   file_put_contents('checkedInUsers.txt', json_encode($checkedInUsers));
