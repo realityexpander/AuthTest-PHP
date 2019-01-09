@@ -8,15 +8,21 @@ function loadCheckedInUsers() {
   $result = Array();
   $checkedInUsers = file_exists('checkedInUsers.txt') ? json_decode(file_get_contents('checkedInUsers.txt'), true) : Array();
 
-  $modified = false;
+  if(empty($checkedInUsers))
+    return $checkedInUsers;
+
   foreach ($checkedInUsers as $user) { 
-    if( $user['expiry'] - time() > 0) { // user login expired? Remove from list.
+    if( $user['expiry'] - time() > 0) { // only include if not expired
       $result[] = $user;
-      $modified = true;
+    } else {
+      echo "expired session:" . $user['user_id'] . "<br/><br/>";
     }
   }
-  if ($modified)
-    file_put_contents('checkedInUsers.txt', json_encode($result));
+
+  if(empty($result))
+    $result = Array();
+
+  file_put_contents('checkedInUsers.txt', json_encode($result));
 
   return $result;
 }
@@ -49,7 +55,7 @@ function login($user_id, $checkedInUsers) {
 
 function checkInUser($user_id, $checkedInUsers) {
   if(!isUserCheckedIn($user_id, $checkedInUsers)) {
-    $checkedInUsers[] = [ 'user_id' => $user_id, 'expiry' => time()+120 ];
+    $checkedInUsers[] = [ 'user_id' => $user_id, 'expiry' => time()+60 ];
     file_put_contents('checkedInUsers.txt', json_encode($checkedInUsers));
   } else {
     renewCheckedInStatus($user_id, $checkedInUsers);
@@ -103,7 +109,7 @@ function renewCheckedInStatus($user_id, $checkedInUsers){
   $i=0;
   foreach($checkedInUsers as $values) {
     if ($values['user_id'] === $user_id )
-      $checkedInUsers[$i]['expiry'] = time() + 120;
+      $checkedInUsers[$i]['expiry'] = time() + 60;
     $i++;
   }
   file_put_contents('checkedInUsers.txt', json_encode($checkedInUsers));
@@ -111,7 +117,7 @@ function renewCheckedInStatus($user_id, $checkedInUsers){
 
 // **********************************************************************
 // COMMANDS HERE : Login / logout
-// $hashed_user_id = login("admin", $checkedInUsers); // from login form
+// $hashed_user_id = login("admin", $checkedInUsers); // LOGIN from login form
 // isset($_SESSION["user_id"]) ? logout($_SESSION["user_id"] , $checkedInUsers) : null; // Logout
 
 
@@ -129,10 +135,12 @@ $cookie_id_hash = isset($_COOKIE["user_id"]) ? $_COOKIE["user_id"] : "";
 
 echo "session_user_id = " . $session_user_id . "<br/><br/>";
 
+// Does hashed user_id from client match our user_id for this session?
 if ( hash("sha256", $session_user_id, false) === $cookie_id_hash ) {
-    if(isUserCheckedIn($session_user_id, $checkedInUsers))  {
-      echo "Login Hash match & Checked in as ". $session_user_id .".<br/>";
-      // check if expired
+    if (isUserCheckedIn($session_user_id, $checkedInUsers))  {
+      echo "Hashes matched, logged in as: ". $session_user_id .".<br/>";
+
+      // check if session has expired
       $user = getCheckedInUserData($session_user_id, $checkedInUsers);
       if($user !== null) {
         $expire_time = number_format( ( $user['expiry'] - time()) / 60, 2, ".", "");
@@ -142,14 +150,15 @@ if ( hash("sha256", $session_user_id, false) === $cookie_id_hash ) {
           echo "Logging out this client.<br/>";
           logout($session_user_id, $checkedInUsers);
         } else {
-          echo "Session renewed.<br/>";
+          // Renew this session
           renewCheckedInStatus($session_user_id, $checkedInUsers);
           $checkedInUsers = loadCheckedInUsers();
+          echo "Session renewed.<br/>";
         }
       }
 
     } else {
-      echo "Login Hash match & NOT checked in - possible old open browser?<br/>";
+      echo "Login Hash matched but NOT checked in - possible old open browser or expired session?<br/>";
       echo "Ending session for this client.<br/>";
       endSession();
     }
