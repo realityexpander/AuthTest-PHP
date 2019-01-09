@@ -1,12 +1,12 @@
 <?php
 
-session_start();
-$checkedInUsers = loadCheckedInUsers();
-
-
+init();
+function init() {
+  session_start();
+  $checkedInUsers = loadCheckedInUsers();
   define( 'SESSION_DURATION_SECONDS' , '60' );
   define( 'COOKIE_DURATION_SECONDS' , '3600' );
-
+}
 
 // *** load the currently checked in users
 function loadCheckedInUsers() {
@@ -49,6 +49,7 @@ function logout($user_id, $checkedInUsers) {
 
 // *** Login
 function login($user_id, $checkedInUsers) {
+  // normally would check database for hashed password, preferrably salted TODO
   $_SESSION["user_id"] = $user_id; // set when succesfully logged in
   $hashed_user_id = hash("sha256", $user_id, false);
   $_COOKIE["user_id"] = $hashed_user_id;
